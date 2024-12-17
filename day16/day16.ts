@@ -1,4 +1,4 @@
-import { intersection, min } from "ramda";
+import { uniqWith, equals } from "ramda";
 
 const file = Bun.file("input.txt");
 const text = await file.text();
@@ -25,7 +25,10 @@ for (let y = 0; y < maze.length; y++) {
 	}
 }
 
-const findPossiblePaths = (paths: Coord[][]): Coord[][] => {
+const findPossiblePaths = (
+	paths: Coord[][],
+	targetScore?: number | undefined,
+): Coord[][] => {
 	const newPaths: Coord[][] = [];
 
 	for (let i = 0; i < paths.length; i++) {
@@ -64,8 +67,14 @@ const findPossiblePaths = (paths: Coord[][]): Coord[][] => {
 	) {
 		return newPaths;
 	}
+  // TODO: Refactor
+	if (!targetScore) return findPossiblePaths(newPaths);
 
-	return findPossiblePaths(newPaths);
+	const filteredPaths = newPaths.filter(
+		(path) => countScore(path) <= targetScore,
+	);
+
+	return findPossiblePaths(filteredPaths, targetScore);
 };
 
 const countScore = (path: Coord[]): number => {
@@ -99,10 +108,7 @@ const countScore = (path: Coord[]): number => {
 const p1 = Math.min(
 	...findPossiblePaths([[START]]).map((path) => countScore(path)),
 );
+const p2 = uniqWith(equals, findPossiblePaths([[START]], p1).flat()).length;
 
 console.log("p1", p1);
-
-// const possiblePaths = findPossiblePaths([[START]]);
-// console.log(possiblePaths);
-// console.log(possiblePaths.filter((path) => path.length === 37));
-// console.log(Math.min(...possiblePaths.map((path) => countScore(path))));
+console.log("p2", p2);
