@@ -46,7 +46,7 @@ const sortWires = (wires: string[]): string[] => {
 	const compareFn = (w1: string, w2: string) => {
 		const [a, b] = [Number(w1.slice(1)), Number(w2.slice(1))];
     if (a > b) return 1
-    else if (a < b) return -1
+    if (a < b) return -1
     return 0
 	};
 
@@ -59,6 +59,7 @@ const calc = (gateConnections: GateConnection[], wireVal: WireVal): number => {
   if (gateConnections.length === 0) {
     let binaryStr = "";
     const zWires = wires.filter(wire => wire.startsWith("z"))
+		// biome-ignore lint/complexity/noForEach: <explanation>
 		sortWires(zWires).forEach((key) => {
 			binaryStr = binaryStr.concat(wireVal[key].toString());
 		});
@@ -69,6 +70,7 @@ const calc = (gateConnections: GateConnection[], wireVal: WireVal): number => {
   const newWireVal: WireVal = {}
   const newGateConnections: GateConnection[] = []
 
+  // biome-ignore lint/complexity/noForEach: <explanation>
   gateConnections.forEach((connection) => {
     const { in1, in2, gate, out } = connection
     if (wires.includes(in1) && wires.includes(in2)) {
@@ -83,5 +85,6 @@ const calc = (gateConnections: GateConnection[], wireVal: WireVal): number => {
 };
 
 const p1 = calc(GATE_CONNECTIONS, INIT_VALUES)
+// Part 2 did it manually with graph
 
 console.log("p1", p1);
