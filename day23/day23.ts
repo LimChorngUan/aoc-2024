@@ -1,16 +1,16 @@
-import { init, transpose, intersection, last } from "ramda";
+import { transpose } from "ramda";
 
 const file = Bun.file("input.txt");
 const text = await file.text();
 const input = text.split("\n").map((line) => line.split("-"));
 
-const connectionMap: Map<string, string[]> = new Map();
+const CONNECTION_MAP: Map<string, string[]> = new Map();
 const setNewV = (k: string, newV: string) => {
-	const v = connectionMap.get(k);
+	const v = CONNECTION_MAP.get(k);
 	if (v) {
-		connectionMap.set(k, [...v, newV]);
+		CONNECTION_MAP.set(k, [...v, newV]);
 	} else {
-		connectionMap.set(k, [newV]);
+		CONNECTION_MAP.set(k, [newV]);
 	}
 };
 for (let i = 0; i < input.length; i++) {
@@ -20,11 +20,28 @@ for (let i = 0; i < input.length; i++) {
 	setNewV(k2, k1);
 }
 
-const findGroups = (connectionMap: Map<string, string[]>): string[] => {
+const areAllConnected = (
+	connectionMap: Map<string, string[]>,
+	group: string[],
+): boolean => {
+	for (let i = 0; i < group.length; i++) {
+		const curr = group[i];
+		const rest = Array.from(new Set(group.filter((_, j) => j !== i)));
+
+		if (rest.some((k) => !connectionMap.get(k)?.includes(curr))) return false;
+	}
+
+	return true;
+};
+
+const findConnectedGroups = (
+	connectionMap: Map<string, string[]>,
+	n: number,
+): string[][] => {
 	let all: string[][] = transpose([Array.from(connectionMap.keys())]);
 
-	for (let i = 0; i < 3; i++) {
-		const newSets: string[][] = [];
+	for (let i = 1; i < n; i++) {
+		const newGroups: string[][] = [];
 
 		for (let j = 0; j < all.length; j++) {
 			const updated: string[][] = [];
@@ -35,75 +52,51 @@ const findGroups = (connectionMap: Map<string, string[]>): string[] => {
 			if (vs) {
 				// biome-ignore lint/complexity/noForEach: <explanation>
 				vs.forEach((v) => {
-					updated.push([...curr, v]);
+					const newGroup = [...curr, v];
+					if (areAllConnected(connectionMap, newGroup)) {
+						updated.push(newGroup);
+					}
 				});
 			}
 
-			newSets.push(...updated);
+			newGroups.push(...updated);
 		}
 
-		all = newSets;
+		const dedup = Array.from(
+			new Set(newGroups.map((c) => c.toSorted().join(","))),
+		).map((c) => c.split(","));
+
+		all = dedup;
 	}
 
-	const foundSets = Array.from(
-		new Set(
-			all
-				.filter((c) => new Set(c).size === c.length - 1)
-				.filter((c) => c[0] === c[c.length - 1])
-				.map((c) => init(c))
-				.map((c) => c.toSorted().join(","))
-				.filter((c) => c.split(",").some((s) => s.startsWith("t"))),
-		),
-	);
-
-	return foundSets;
+	return all;
 };
 
-const isInterconnect = (groups: string[][]): boolean => {
-	for (let i = 0; i < groups.length; i++) {
-		const curr = groups[i];
-		const rest = Array.from(new Set(groups.filter((_, j) => j !== i).flat()));
+const findLargestGroup = (
+	connectionMap: Map<string, string[]>,
+	initN: number,
+): string => {
+	let n = initN;
+	let stop = false;
+	let groups: string[][] = [];
 
-		if (curr.some((c) => !rest.includes(c))) return false;
-	}
-
-	return true;
-};
-
-const findBiggestGroup = (groups: string[][]): string[][] => {
-	let biggestGroup: string[][] = [];
-
-	for (let i = 0; i < groups.length - 1; i++) {
-		const curr = groups[i];
-		const group = [curr];
-		for (let j = i + 1; j < groups.length - 1; j++) {
-			const next = groups[j];
-
-			if (intersection(curr, next).length === 2) {
-				group.push(next);
-			}
-		}
-
-		if (isInterconnect(group) && group.length > biggestGroup.length) {
-			biggestGroup = group;
+	while (!stop) {
+		const newGroups = findConnectedGroups(connectionMap, n);
+		if (newGroups.length === 0) {
+			stop = true;
+		} else {
+			groups = newGroups;
+			n++;
 		}
 	}
 
-	return biggestGroup;
+	return groups.flat().join(",");
 };
 
-// const p1 = findGroups(connectionMap).length;
-// const p2 = Array.from(
-// 	new Set(
-// 		findBiggestGroup(
-// 			findGroups(connectionMap).map((group) => group.split(",")),
-// 		).flat(),
-// 	),
-// )
-// 	.toSorted()
-// 	.join(",");
+const p1 = findConnectedGroups(CONNECTION_MAP, 3).filter((group) =>
+	group.some((c) => c.startsWith("t")),
+).length;
+const p2 = findLargestGroup(CONNECTION_MAP, 10);
 
-// console.log("p1", p1);
-// console.log("p2", p2);
-
-console.log(connectionMap)
+console.log("p1", p1);
+console.log("p2", p2);
