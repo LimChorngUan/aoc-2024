@@ -1,4 +1,4 @@
-import { findIndex } from "ramda";
+import { findIndex, sum } from "ramda";
 
 const file = Bun.file("input.txt");
 const text = await file.text();
@@ -14,7 +14,7 @@ const findCoord = (s: string, map: string[][]): Coord => {
 	return [-1, -1];
 };
 
-const MAZE = text.split("\n").map((line) => line.split(""));
+const MAZE: string[][] = text.split("\n").map((line) => line.split(""));
 
 // Path includes start and end coords
 const getPath = (maze: string[][]) => {
@@ -49,22 +49,20 @@ const getPath = (maze: string[][]) => {
 	return path;
 };
 
-const findCheatCoords = (path: Coord[]): [Coord, Coord][] => {
+const coordToStr = (coord: Coord): string => coord.join(",");
+
+const findCheatCoords = (path: Coord[], d: number): [Coord, Coord][] => {
 	const cheats: [Coord, Coord][] = [];
 
 	for (let i = 0; i < path.length; i++) {
-		const curr = path[i];
-		for (let j = i + 1; j < path.length; j++) {
+		for (let j = i + d; j < path.length; j++) {
+			const curr = path[i];
 			const target = path[j];
-			const between = path[j - 1];
+
 			const dy = Math.abs(curr[0] - target[0]);
 			const dx = Math.abs(curr[1] - target[1]);
-			const dby = Math.abs(curr[0] - between[0]);
-			const dbx = Math.abs(curr[1] - between[1]);
-			if (
-				(dy === 2 && dx === 0 && dby !== 1) ||
-				(dx === 2 && dy === 0 && dbx !== 1)
-			) {
+
+			if (dy + dx === d) {
 				cheats.push([curr, target]);
 			}
 		}
@@ -73,45 +71,48 @@ const findCheatCoords = (path: Coord[]): [Coord, Coord][] => {
 	return cheats;
 };
 
-const findSavedTime = (path: Coord[], [c1, c2]: [Coord, Coord]): number => {
-	const strPath = path.map((p) => p.join(","));
-	const [strC1, strC2] = [c1.join(","), c2.join(",")];
+const findSavedTime = (
+	path: Coord[],
+	[c1, c2]: [Coord, Coord],
+	d: number,
+): number => {
+	const strPath = path.map(coordToStr);
+	const [strC1, strC2] = [coordToStr(c1), coordToStr(c2)];
 
 	const [i1, i2] = [
 		findIndex((p) => p === strC1, strPath),
 		findIndex((p) => p === strC2, strPath),
 	];
 
-	return i2 - i1 - 2;
+	return i2 - i1 - d;
 };
 
 const getCheatMap = (
 	path: Coord[],
-	cheatCoords: [Coord, Coord][],
+	maxCheatAllowed: number,
+	minSavedT: number,
 ): Map<number, number> => {
 	const map: Map<number, number> = new Map();
 
-	// biome-ignore lint/complexity/noForEach: <explanation>
-	cheatCoords.forEach(([c1, c2]) => {
-		const k = findSavedTime(path, [c1, c2]);
-		const v = map.get(k);
-		map.set(k, v ? v + 1 : 1);
-	});
+	for (let i = 16; i <= maxCheatAllowed; i++) {
+		const cheatCoords = findCheatCoords(path, i);
+		// biome-ignore lint/complexity/noForEach: <explanation>
+		cheatCoords.forEach(([c1, c2]) => {
+			const k = findSavedTime(path, [c1, c2], i);
+			const v = map.get(k);
+			if (k >= minSavedT) {
+				map.set(k, v ? v + 1 : 1);
+			}
+		});
+	}
 
 	return map;
 };
 
-const countCheats = (cheatMap: Map<number, number>, minT: number): number => {
-	let sum = 0;
-
-	for (const [savedTime, count] of cheatMap) {
-		if (savedTime >= minT) sum += count;
-	}
-
-	return sum;
-};
-
 const path = getPath(MAZE);
-const p1 = countCheats(getCheatMap(path, findCheatCoords(path)), 100);
+
+const p1 = sum(Array.from(getCheatMap(path, 2, 100).values()));
+const p2 = sum(Array.from(getCheatMap(path, 20, 100).values()));
 
 console.log("p1", p1);
+console.log("p2", p2); // Slow :) 
